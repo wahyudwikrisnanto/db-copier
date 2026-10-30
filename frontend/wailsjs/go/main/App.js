@@ -6,8 +6,24 @@ export function CancelCopy() {
   return window['go']['main']['App']['CancelCopy']();
 }
 
+export function ClearHistory() {
+  return window['go']['main']['App']['ClearHistory']();
+}
+
 export function DeleteConnection(arg1) {
   return window['go']['main']['App']['DeleteConnection'](arg1);
+}
+
+export function DeleteJob(arg1) {
+  return window['go']['main']['App']['DeleteJob'](arg1);
+}
+
+export function ExportJobLog(arg1) {
+  return window['go']['main']['App']['ExportJobLog'](arg1);
+}
+
+export function GetJob(arg1) {
+  return window['go']['main']['App']['GetJob'](arg1);
 }
 
 export function GetSettings() {
@@ -20,6 +36,10 @@ export function IsCopyRunning() {
 
 export function ListConnections() {
   return window['go']['main']['App']['ListConnections']();
+}
+
+export function ListJobs() {
+  return window['go']['main']['App']['ListJobs']();
 }
 
 export function PickKeyFile() {

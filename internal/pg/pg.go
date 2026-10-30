@@ -151,3 +151,65 @@ func collect(ctx context.Context, tx pgx.Tx, sql string) ([]string, error) {
 	}
 	return pgx.CollectRows(rows, pgx.RowTo[string])
 }
+
+// Table is a user table whose data pg_dump will copy, with its on-disk size.
+type Table struct {
+	Name  string `json:"name"`
+	Bytes int64  `json:"bytes"`
+}
+
+// Plan describes what a copy of the database will transfer, for progress
+// reporting. PostData estimates the indexes, constraints, triggers and
+// materialized views pg_restore creates after the data.
+type Plan struct {
+	Tables   []Table `json:"tables"`
+	PostData int     `json:"postData"`
+}
+
+const userNamespace = `n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg\_%'`
+
+// LoadPlan reads table sizes and post-data object counts from the source.
+func LoadPlan(ctx context.Context, e Endpoint) (Plan, error) {
+	conn, err := Connect(ctx, e)
+	if err != nil {
+		return Plan{}, err
+	}
+	defer conn.Close(ctx)
+
+	rows, err := conn.Query(ctx, `
+		SELECT n.nspname || '.' || c.relname, pg_table_size(c.oid)
+		FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+		WHERE c.relkind = 'r' AND `+userNamespace+`
+		  AND NOT EXISTS (SELECT 1 FROM pg_depend d
+		                  WHERE d.classid = 'pg_class'::regclass AND d.objid = c.oid AND d.deptype = 'e')
+		ORDER BY 2 DESC, 1`)
+	if err != nil {
+		return Plan{}, err
+	}
+	tables, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Table, error) {
+		var t Table
+		return t, r.Scan(&t.Name, &t.Bytes)
+	})
+	if err != nil {
+		return Plan{}, err
+	}
+
+	var postData int
+	err = conn.QueryRow(ctx, `
+		SELECT
+		  (SELECT count(*) FROM pg_index i
+		     JOIN pg_class c ON c.oid = i.indexrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+		    WHERE `+userNamespace+`
+		      AND NOT EXISTS (SELECT 1 FROM pg_constraint k WHERE k.conindid = i.indexrelid AND k.contype IN ('p', 'u', 'x')))
+		+ (SELECT count(*) FROM pg_constraint k JOIN pg_namespace n ON n.oid = k.connamespace
+		    WHERE `+userNamespace+` AND k.contype IN ('p', 'u', 'f', 'x'))
+		+ (SELECT count(*) FROM pg_trigger t
+		     JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+		    WHERE NOT t.tgisinternal AND `+userNamespace+`)
+		+ (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+		    WHERE c.relkind = 'm' AND `+userNamespace+`)`).Scan(&postData)
+	if err != nil {
+		return Plan{}, err
+	}
+	return Plan{Tables: tables, PostData: postData}, nil
+}

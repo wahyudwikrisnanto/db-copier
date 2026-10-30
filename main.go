@@ -3,11 +3,13 @@ package main
 import (
 	"embed"
 	"log"
+	"path/filepath"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
+	"db-copier/internal/history"
 	"db-copier/internal/store"
 )
 
@@ -21,7 +23,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	app := NewApp(s)
+	h, err := history.Open(filepath.Join(s.Dir(), "history"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	app := NewApp(s, h)
 
 	err = wails.Run(&options.App{
 		Title:     "DB Copier",

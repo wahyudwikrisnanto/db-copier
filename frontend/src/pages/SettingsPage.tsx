@@ -72,7 +72,7 @@ function ToolField({label, value, tool, onChange}: {
       {tool && (tool.error
         ? <p className="flex items-center gap-1.5 text-xs text-destructive"><XCircleIcon className="size-3.5"/>{tool.error}</p>
         : <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <CheckCircle2Icon className="size-3.5 text-green-600"/>{tool.version} <span className="font-mono">({tool.path})</span>
+            <CheckCircle2Icon className="size-3.5 text-success"/>{tool.version} <span className="font-mono">({tool.path})</span>
           </p>)}
     </div>
   )

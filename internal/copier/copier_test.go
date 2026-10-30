@@ -42,3 +42,12 @@ func TestSameTarget(t *testing.T) {
 		}
 	}
 }
+
+func TestIsTransactionTimeoutError(t *testing.T) {
+	if !isTransactionTimeoutError(`pg_restore: error: could not execute query: ERROR:  unrecognized configuration parameter "transaction_timeout"`) {
+		t.Error("expected match")
+	}
+	if isTransactionTimeoutError(`pg_restore: error: could not execute query: ERROR:  unrecognized configuration parameter "foo"`) {
+		t.Error("unexpected match")
+	}
+}
